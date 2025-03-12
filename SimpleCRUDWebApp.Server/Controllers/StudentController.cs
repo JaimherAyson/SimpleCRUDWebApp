@@ -3,25 +3,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SimpleCRUDWebApp.Server.Data;
 using SimpleCRUDWebApp.Server.Entities;
+using SimpleCRUDWebApp.Server.Services.Contracts;
 
 namespace SimpleCRUDWebApp.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class StudentController(StudentDbContext context) : ControllerBase
+    public class StudentController(IStudentService studentService) : ControllerBase
     {
-        private readonly StudentDbContext _context = context;
+        private readonly IStudentService _studentService = studentService;
 
         [HttpGet]
-        public async Task<ActionResult<List<Student>>> GetStudent()
+        public async Task<ActionResult<List<Student>>> GetStudents()
         {
-            return Ok(await _context.Students.ToListAsync());
+            return Ok(await _studentService.GetStudentsAsync());
         }
 
         [HttpGet("{id}")]
-         public async Task<ActionResult<Student>> GetStudentById(int id)
+        public async Task<ActionResult<Student>> GetStudentById(int id)
         {
-            var student = await _context.Students.FindAsync(id);
+            var student = await _studentService.GetStudentByIdAsync(id);
             if (student is null)
                 return NotFound();
             return Ok(student);
@@ -33,24 +34,16 @@ namespace SimpleCRUDWebApp.Server.Controllers
             if (newStudent is null)
                 return BadRequest();
 
-            _context.Students.Add(newStudent);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetStudentById), new {id = newStudent.Id}, newStudent);
+            var student = await _studentService.AddStudentAsync(newStudent);
+            return CreatedAtAction(nameof(GetStudentById), new { id = student.Id }, student);
         }
-
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateStudent(int id, Student updatedStudent)
         {
-            var student = await _context.Students.FindAsync(id);
-            if (student is null)
+            var success = await _studentService.UpdateStudentAsync(id, updatedStudent);
+            if (!success)
                 return NotFound();
-
-            student.Name = updatedStudent.Name;
-            student.Email = updatedStudent.Email;
-
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -58,15 +51,11 @@ namespace SimpleCRUDWebApp.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
-            var student = await _context.Students.FindAsync(id);
-            if (student is null)
+            var success = await _studentService.DeleteStudentAsync(id);
+            if (!success)
                 return NotFound();
-
-            _context.Students.Remove(student);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
-
-    } 
+    }
 }
